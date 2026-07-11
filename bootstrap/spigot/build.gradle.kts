@@ -63,7 +63,7 @@ tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
         attributes["paperweight-mappings-namespace"] = "mojang"
     }
 
-    archiveBaseName.set("Geyser-Spigot")
+    archiveBaseName.set("Geyser-Spigot-mxzc")
 
     dependencies {
         exclude(dependency("com.google.*:.*"))

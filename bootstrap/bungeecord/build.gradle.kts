@@ -30,7 +30,7 @@ tasks.withType<Jar> {
 }
 
 tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
-    archiveBaseName.set("Geyser-BungeeCord")
+    archiveBaseName.set("Geyser-BungeeCord-mxzc")
 
     dependencies {
         exclude(dependency("com.google.*:.*"))

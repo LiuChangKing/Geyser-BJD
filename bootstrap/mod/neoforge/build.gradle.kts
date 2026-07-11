@@ -63,11 +63,11 @@ tasks.withType<Jar> {
 
 tasks {
     remapJar {
-        archiveBaseName.set("Geyser-NeoForge")
+        archiveBaseName.set("Geyser-NeoForge-mxzc")
     }
 
     remapModrinthJar {
-        archiveBaseName.set("geyser-neoforge")
+        archiveBaseName.set("geyser-neoforge-mxzc")
     }
 
     shadowJar {
