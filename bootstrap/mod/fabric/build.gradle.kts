@@ -62,11 +62,11 @@ relocate("org.spongepowered.configurate")
 
 tasks {
     remapJar {
-        archiveBaseName.set("Geyser-Fabric")
+        archiveBaseName.set("Geyser-Fabric-mxzc")
     }
 
     remapModrinthJar {
-        archiveBaseName.set("geyser-fabric")
+        archiveBaseName.set("geyser-fabric-mxzc")
     }
 
     shadowJar {
