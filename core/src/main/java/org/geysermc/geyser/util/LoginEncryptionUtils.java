@@ -61,6 +61,7 @@ public class LoginEncryptionUtils {
     private static boolean HAS_SENT_ENCRYPTION_MESSAGE = false;
 
     public static final String ENV_STANDARD = "obt";
+    private static final String NETEASE_INVALID_LOGIN_MESSAGE = "\u7f51\u6613\u8d26\u53f7\u767b\u5f55\u5df2\u5931\u6548\uff0c\u8bf7\u91cd\u65b0\u542f\u52a8\u6e38\u620f\u540e\u518d\u8fdb\u5165\u670d\u52a1\u5668\u3002";
 
     public static void encryptPlayerConnection(GeyserSession session, LoginPacket loginPacket) {
         encryptConnectionWithCert(session, loginPacket.getAuthPayload(), loginPacket.getClientJwt());
@@ -95,7 +96,7 @@ public class LoginEncryptionUtils {
                 List<String> certChainData = certificateChainPayload.getChain();
                 boolean validNeteaseChainData = validateNeteaseChainData(certChainData);
                 if (!validNeteaseChainData && session.getGeyser().config().netease().onlineMode()) {
-                    session.disconnect(GeyserLocale.getLocaleStringLog("geyser.network.remote.invalid_xbox_account"));
+                    session.disconnect(NETEASE_INVALID_LOGIN_MESSAGE);
                     return;
                 }
             }
