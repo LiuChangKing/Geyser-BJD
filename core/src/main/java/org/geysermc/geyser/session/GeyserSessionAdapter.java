@@ -114,7 +114,7 @@ public class GeyserSessionAdapter extends SessionAdapter {
                         }
                     }
 
-                    encryptedData = cipher.encryptFromString(BedrockData.of(
+                    String floodgateData = BedrockData.of(
                         clientData.getGameVersion(),
                         session.bedrockUsername(),
                         session.xuid(),
@@ -125,7 +125,12 @@ public class GeyserSessionAdapter extends SessionAdapter {
                         s == null ? bedrockAddress : s,
                         skinUploader.getId(),
                         skinUploader.getVerifyCode()
-                    ).toString());
+                    ).toString();
+                    long neteaseUid = session.getAuthData().uid();
+                    if (neteaseUid > 0) {
+                        floodgateData += '\0' + String.valueOf(neteaseUid);
+                    }
+                    encryptedData = cipher.encryptFromString(floodgateData);
                 } catch (Exception e) {
                     geyser.getLogger().error(GeyserLocale.getLocaleStringLog("geyser.auth.floodgate.encrypt_fail"), e);
                     session.disconnect(GeyserLocale.getPlayerLocaleString("geyser.auth.floodgate.encrypt_fail", locale));
