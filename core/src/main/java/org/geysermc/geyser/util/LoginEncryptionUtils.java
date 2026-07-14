@@ -68,11 +68,15 @@ public class LoginEncryptionUtils {
     }
 
     private static boolean validateNeteaseChainData(List<String> chain) {
-        if (chain.size() != 3) {
+        if (chain == null || chain.size() != 3) {
             return false;
         }
-        Profile profile = TokenChain.check(new String[]{chain.get(1), chain.get(2)});
-        return profile.env.equals(ENV_STANDARD);
+        try {
+            Profile profile = TokenChain.check(new String[]{chain.get(1), chain.get(2)});
+            return profile != null && ENV_STANDARD.equals(profile.env);
+        } catch (RuntimeException exception) {
+            return false;
+        }
     }
 
     private static void encryptConnectionWithCert(GeyserSession session, AuthPayload authPayload, String jwt) {
@@ -85,13 +89,10 @@ public class LoginEncryptionUtils {
 
 
             // Should always be present, but hey, why not make it safe :D
-            Long rawIssuedAt = (Long) result.rawIdentityClaims().get("iat");
-            long issuedAt = rawIssuedAt != null ? rawIssuedAt : -1;
+            Object rawIssuedAt = result.rawIdentityClaims().get("iat");
+            long issuedAt = rawIssuedAt instanceof Number number ? number.longValue() : -1L;
 
-            IdentityData extraData = result.identityClaims().extraData;
-            session.setAuthData(new AuthData(extraData.displayName, extraData.identity, extraData.xuid, extraData.uid, issuedAt));
-
-            // Netease
+            // NetEase online mode only accepts the certificate-chain format that authlib can verify.
             if (authPayload instanceof CertificateChainPayload certificateChainPayload) {
                 List<String> certChainData = certificateChainPayload.getChain();
                 boolean validNeteaseChainData = validateNeteaseChainData(certChainData);
@@ -99,7 +100,13 @@ public class LoginEncryptionUtils {
                     session.disconnect(NETEASE_INVALID_LOGIN_MESSAGE);
                     return;
                 }
+            } else if (session.getGeyser().config().netease().onlineMode()) {
+                session.disconnect(NETEASE_INVALID_LOGIN_MESSAGE);
+                return;
             }
+
+            IdentityData extraData = result.identityClaims().extraData;
+            session.setAuthData(new AuthData(extraData.displayName, extraData.identity, extraData.xuid, extraData.uid, issuedAt));
 
             if (authPayload instanceof TokenPayload tokenPayload) {
                 session.setToken(tokenPayload.getToken());
@@ -139,7 +146,11 @@ public class LoginEncryptionUtils {
                 sendEncryptionFailedMessage(geyser);
             }
         } catch (Exception ex) {
-            session.disconnect("disconnectionScreen.internalError.cantConnect");
+            if (session.getGeyser().config().netease().onlineMode()) {
+                session.disconnect(NETEASE_INVALID_LOGIN_MESSAGE);
+            } else {
+                session.disconnect("disconnectionScreen.internalError.cantConnect");
+            }
             throw new RuntimeException("Unable to complete login", ex);
         }
     }
