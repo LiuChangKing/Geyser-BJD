@@ -126,9 +126,11 @@ public class GeyserSessionAdapter extends SessionAdapter {
                         skinUploader.getId(),
                         skinUploader.getVerifyCode()
                     ).toString();
-                    long neteaseUid = session.getAuthData().uid();
-                    if (neteaseUid > 0) {
-                        floodgateData += '\0' + String.valueOf(neteaseUid);
+                    if (session.getAuthData().hasValidNeteaseUid()) {
+                        floodgateData += '\0' + String.valueOf(session.getAuthData().uid());
+                    } else if (session.getAuthData().uid() > 0) {
+                        geyser.getLogger().warning("Ignoring out-of-range NetEase Bedrock UID for "
+                            + session.bedrockUsername() + ": " + session.getAuthData().uid());
                     }
                     encryptedData = cipher.encryptFromString(floodgateData);
                 } catch (Exception e) {

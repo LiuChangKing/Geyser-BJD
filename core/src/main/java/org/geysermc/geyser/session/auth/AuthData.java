@@ -37,7 +37,14 @@ import java.util.UUID;
  * @param issuedAt The unix time (in seconds) that the JWT was issued
  */
 public record AuthData(String name, UUID uuid, String xuid, long uid, long issuedAt) {
+    private static final long NETEASE_BEDROCK_UID_MIN = 0x80000000L;
+    private static final long NETEASE_BEDROCK_UID_MAX = 0xffffffffL;
+
     public AuthData(String name, UUID uuid, String xuid) {
         this(name, uuid, xuid, -1L, -1L);
+    }
+
+    public boolean hasValidNeteaseUid() {
+        return uid >= NETEASE_BEDROCK_UID_MIN && uid <= NETEASE_BEDROCK_UID_MAX;
     }
 }

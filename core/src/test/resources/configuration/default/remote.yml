@@ -223,7 +223,7 @@ advanced:
 # Netease-specific configuration options
 netease:
   # Whether to require Netease online mode authentication.
-  online-mode: false
+  online-mode: true
 
   # Whether PC clients are allowed.
   allowed-pc: false

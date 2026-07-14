@@ -512,10 +512,10 @@ public interface GeyserConfig {
     @ConfigSerializable
     interface NeteaseConfig {
         @Comment("Whether to require Netease online mode authentication.")
-        @DefaultBoolean(false)
+        @DefaultBoolean(true)
         boolean onlineMode();
 
-        @Comment("Whether PC clients are allowed.")
+        @Comment("Reserved for NetEase client compatibility; currently not enforced.")
         @DefaultBoolean(false)
         boolean allowedPc();
 

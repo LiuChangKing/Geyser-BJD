@@ -212,8 +212,7 @@ public class GeyserImpl implements GeyserApi, EventRegistrar {
      */
     @Getter
     private static HikariDataSource dataSource;
-    @Getter
-    private static JedisPool pool;
+    private static volatile JedisPool pool;
     private static final HashMap<Integer, String> optionalPacks = new HashMap<>();
 
     private GeyserImpl(GeyserBootstrap bootstrap) {
@@ -349,11 +348,25 @@ public class GeyserImpl implements GeyserApi, EventRegistrar {
             }
             SkinProvider.loadCustomSkins();
         }
-
-        initJedis();
     }
 
-    private void initJedis() {
+    public static JedisPool getPool() {
+        JedisPool currentPool = pool;
+        if (currentPool != null) {
+            return currentPool;
+        }
+
+        synchronized (GeyserImpl.class) {
+            currentPool = pool;
+            if (currentPool == null) {
+                currentPool = instance.createJedisPool();
+                pool = currentPool;
+            }
+            return currentPool;
+        }
+    }
+
+    private JedisPool createJedisPool() {
         GeyserConfig geyserConfig = bootstrap.config();
         // 配置连接池
         GenericObjectPoolConfig<Jedis> config = new GenericObjectPoolConfig<>();
@@ -366,7 +379,7 @@ public class GeyserImpl implements GeyserApi, EventRegistrar {
         config.setMinEvictableIdleTimeMillis(60000);
         config.setNumTestsPerEvictionRun(-1);
 
-        pool = new JedisPool(config, geyserConfig.netease().redis().url(), geyserConfig.netease().redis().port());
+        return new JedisPool(config, geyserConfig.netease().redis().url(), geyserConfig.netease().redis().port());
     }
 
     private void startInstance() {
@@ -405,6 +418,11 @@ public class GeyserImpl implements GeyserApi, EventRegistrar {
             logger.error("XBOX AUTHENTICATION IS DISABLED ON THIS GEYSER INSTANCE!");
             logger.error("While this allows using Bedrock edition proxies, it also opens up the ability for hackers to connect with any username they choose.");
             logger.error("To change this, set \"disable-xbox-auth\" to \"false\" in Geyser's config file.");
+        }
+
+        if (!config.netease().onlineMode()) {
+            logger.error("NETEASE ONLINE AUTHENTICATION IS DISABLED ON THIS GEYSER INSTANCE!");
+            logger.error("正式环境必须将 netease.online-mode 设置为 true，否则网易票据不会被强制校验。");
         }
 
         String geyserUdpPort = System.getProperty("geyserUdpPort", "");
@@ -820,6 +838,18 @@ public class GeyserImpl implements GeyserApi, EventRegistrar {
         runIfNonNull(skinUploader, FloodgateSkinUploader::close);
         runIfNonNull(newsHandler, NewsHandler::shutdown);
         runIfNonNull(erosionUnixListener, UnixSocketClientListener::close);
+
+        JedisPool currentPool = pool;
+        pool = null;
+        if (currentPool != null) {
+            currentPool.close();
+        }
+        HikariDataSource currentDataSource = dataSource;
+        dataSource = null;
+        if (currentDataSource != null) {
+            currentDataSource.close();
+        }
+        optionalPacks.clear();
 
         if (bootstrap.getGeyserPingPassthrough() instanceof GeyserLegacyPingPassthrough legacyPingPassthrough) {
             legacyPingPassthrough.interrupt();
