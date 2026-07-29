@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2026 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,20 +26,38 @@
 package org.geysermc.geyser.translator.collision;
 
 import lombok.EqualsAndHashCode;
+import org.geysermc.geyser.level.block.property.Properties;
 import org.geysermc.geyser.level.block.type.BlockState;
 import org.geysermc.geyser.level.physics.BoundingBox;
+import org.geysermc.geyser.level.physics.Direction;
 
 @EqualsAndHashCode(callSuper = true)
-@CollisionRemapper(regex = "shulker_box$") // These have no collision in the mappings as it depends on the NBT data
-public class SolidCollision extends BlockCollision {
-    public SolidCollision(BlockState state) {
-        super(new BoundingBox[] {
-            new BoundingBox(0.5, 0.5, 0.5, 1, 1, 1)
-        });
+@CollisionRemapper(regex = "_stairs$", usesParams = true, passDefaultBoxes = true)
+public final class StairCollision extends BlockCollision {
+    private final Direction facing;
+    public StairCollision(BlockState state, BoundingBox[] defaultBoxes) {
+        this(state.getValue(Properties.HORIZONTAL_FACING), defaultBoxes);
+    }
+
+    StairCollision(Direction facing, BoundingBox[] defaultBoxes) {
+        super(defaultBoxes);
+        this.facing = facing;
     }
 
     @Override
     protected boolean canCorrectPositionUp(int x, int y, int z, BoundingBox playerCollision) {
-        return isPlayerCenterInsideHorizontalBounds(x, z, playerCollision);
+        // The facing side is the stair's full-height back. A player whose center is
+        // still outside that block face must be separated horizontally, not lifted.
+        // The center must also remain within the stair width: diagonal movement can
+        // make the bounding box graze the side of an adjacent stair while climbing.
+        double playerX = playerCollision.getMiddleX();
+        double playerZ = playerCollision.getMiddleZ();
+        return switch (facing) {
+            case NORTH -> playerX > x && playerX < x + 1.0D && playerZ > z;
+            case SOUTH -> playerX > x && playerX < x + 1.0D && playerZ < z + 1.0D;
+            case WEST -> playerZ > z && playerZ < z + 1.0D && playerX > x;
+            case EAST -> playerZ > z && playerZ < z + 1.0D && playerX < x + 1.0D;
+            default -> true;
+        };
     }
 }

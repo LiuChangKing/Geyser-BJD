@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2026 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,12 +30,10 @@ import org.geysermc.geyser.level.block.type.BlockState;
 import org.geysermc.geyser.level.physics.BoundingBox;
 
 @EqualsAndHashCode(callSuper = true)
-@CollisionRemapper(regex = "shulker_box$") // These have no collision in the mappings as it depends on the NBT data
-public class SolidCollision extends BlockCollision {
-    public SolidCollision(BlockState state) {
-        super(new BoundingBox[] {
-            new BoundingBox(0.5, 0.5, 0.5, 1, 1, 1)
-        });
+@CollisionRemapper(regex = "_fence$|_wall$", passDefaultBoxes = true)
+public final class FenceAndWallCollision extends BlockCollision {
+    public FenceAndWallCollision(BlockState state, BoundingBox[] defaultBoxes) {
+        super(defaultBoxes);
     }
 
     @Override
