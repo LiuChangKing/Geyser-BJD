@@ -404,7 +404,7 @@ public final class EntityDefinitions {
                     .identifier("minecraft:fireworks_rocket")
                     .addTranslator(MetadataTypes.ITEM_STACK, FireworkEntity::setFireworkItem)
                     .addTranslator(MetadataTypes.OPTIONAL_UNSIGNED_INT, FireworkEntity::setPlayerGliding)
-                    .addTranslator(MetadataTypes.BOOLEAN, FireworkEntity::setShotAtAngle)
+                    .addTranslator(null) // Shot at angle
                     .build();
             FISHING_BOBBER = EntityDefinition.<FishingHookEntity>inherited(null, entityBase)
                     .type(EntityType.FISHING_BOBBER)
@@ -536,7 +536,7 @@ public final class EntityDefinitions {
             EntityDefinition<AbstractArrowEntity> abstractArrowBase = EntityDefinition.inherited(AbstractArrowEntity::new, entityBase)
                     .addTranslator(MetadataTypes.BYTE, AbstractArrowEntity::setArrowFlags)
                     .addTranslator(null) // "Piercing level"
-                    .addTranslator(MetadataTypes.BOOLEAN, AbstractArrowEntity::setInGround) // If the arrow is in the ground
+                    .addTranslator(null) // If the arrow is in the ground
                     .build();
             ARROW = EntityDefinition.inherited(ArrowEntity::new, abstractArrowBase)
                     .type(EntityType.ARROW)
@@ -623,7 +623,7 @@ public final class EntityDefinitions {
         {
             EntityDefinition<BoatEntity> boatBase = EntityDefinition.<BoatEntity>inherited(null, entityBase)
                 .height(0.6f).width(1.6f)
-                .offset(0.35f)
+                .offset(0.375f)
                 .addTranslator(MetadataTypes.INT, (boatEntity, entityMetadata) -> boatEntity.getDirtyMetadata().put(EntityDataTypes.HURT_TICKS, entityMetadata.getValue())) // Time since last hit
                 .addTranslator(MetadataTypes.INT, (boatEntity, entityMetadata) -> boatEntity.getDirtyMetadata().put(EntityDataTypes.HURT_DIRECTION, entityMetadata.getValue())) // Rocking direction
                 .addTranslator(MetadataTypes.FLOAT, (boatEntity, entityMetadata) ->
