@@ -30,6 +30,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.geysermc.geyser.session.auth.AuthData;
 import org.geysermc.geyser.text.GeyserLocale;
 
 import java.net.InetAddress;
@@ -53,6 +54,10 @@ public final class SessionManager {
      */
     @Getter
     private final Map<UUID, GeyserSession> sessions = new ConcurrentHashMap<>();
+    /**
+     * Tracks the newest NetEase session for an account while it is pending or in-game.
+     */
+    private final Map<Long, GeyserSession> neteaseSessions = new ConcurrentHashMap<>();
 
     /**
      * Stores the number of connected sessions per address they're connected from.
@@ -93,14 +98,26 @@ public final class SessionManager {
      */
     public void addSession(UUID uuid, GeyserSession session) {
         pendingSessions.remove(session);
+        AuthData authData = session.getAuthData();
+        if (authData != null && authData.hasValidNeteaseUid()
+                && neteaseSessions.get(authData.uid()) != session) {
+            // A LoginSuccess packet from a disconnected predecessor arrived late.
+            return;
+        }
         sessions.put(uuid, session);
     }
 
     public void removeSession(GeyserSession session) {
         UUID uuid = session.getPlayerEntity().getUuid();
-        if (uuid == null || sessions.remove(uuid) == null) {
-            // Connection was likely pending
-            pendingSessions.remove(session);
+        if (uuid != null) {
+            // A delayed disconnect from an old connection must not remove its replacement.
+            sessions.remove(uuid, session);
+        }
+        pendingSessions.remove(session);
+
+        AuthData authData = session.getAuthData();
+        if (authData != null && authData.hasValidNeteaseUid()) {
+            neteaseSessions.remove(authData.uid(), session);
         }
         connectedClients.computeIfPresent(session.getSocketAddress().getAddress(), (key, count) -> {
             if (count.decrementAndGet() <= 0) {
@@ -108,6 +125,25 @@ public final class SessionManager {
             }
             return count;
         });
+    }
+
+    /**
+     * Atomically makes this session the newest owner of its NetEase account.
+     *
+     * @return the previous owner, or {@code null} if there was none
+     */
+    public @Nullable GeyserSession claimNeteaseSession(GeyserSession session) {
+        AuthData authData = session.getAuthData();
+        if (authData == null || !authData.hasValidNeteaseUid()) {
+            return null;
+        }
+
+        GeyserSession previous = neteaseSessions.put(authData.uid(), session);
+        return previous == session ? null : previous;
+    }
+
+    public @Nullable GeyserSession sessionByNeteaseUid(long uid) {
+        return neteaseSessions.get(uid);
     }
 
     public int getAddressMultiplier(InetAddress ip) {

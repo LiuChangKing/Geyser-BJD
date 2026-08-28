@@ -72,6 +72,7 @@ import org.geysermc.geyser.registry.Registries;
 import org.geysermc.geyser.registry.loader.ResourcePackLoader;
 import org.geysermc.geyser.session.GeyserSession;
 import org.geysermc.geyser.session.PendingMicrosoftAuthentication;
+import org.geysermc.geyser.session.auth.AuthData;
 import org.geysermc.geyser.text.GeyserLocale;
 import org.geysermc.geyser.util.LoginEncryptionUtils;
 import org.geysermc.geyser.util.MathUtils;
@@ -226,8 +227,19 @@ public class UpstreamPacketHandler extends LoggingPacketHandler {
             return PacketSignal.HANDLED;
         }
 
-        if (geyser.getSessionManager().isXuidAlreadyPending(session.xuid()) || geyser.getSessionManager().sessionByXuid(session.xuid()) != null) {
-            session.disconnect(GeyserLocale.getLocaleStringLog("geyser.auth.already_loggedin", session.bedrockUsername()));
+        AuthData authData = session.getAuthData();
+        if (authData.hasValidNeteaseUid()) {
+            GeyserSession previous = geyser.getSessionManager().claimNeteaseSession(session);
+            if (previous != null) {
+                geyser.getLogger().info(String.format(
+                        "检测到网易账号重复连接，正在用新连接接管旧会话: UID=%s 旧玩家=%s 新玩家=%s",
+                        authData.uid(), previous.bedrockUsername(), session.bedrockUsername()));
+                previous.disconnect("您的网易账号已通过新的连接进入服务器，旧连接已自动断开。");
+            }
+        } else if (geyser.getSessionManager().isXuidAlreadyPending(session.xuid())
+                || geyser.getSessionManager().sessionByXuid(session.xuid()) != null) {
+            session.disconnect(GeyserLocale.getLocaleStringLog(
+                    "geyser.auth.already_loggedin", session.bedrockUsername()));
             return PacketSignal.HANDLED;
         }
 
