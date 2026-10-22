@@ -32,6 +32,8 @@ import org.cloudburstmc.protocol.bedrock.codec.BedrockPacketDefinition;
 import org.cloudburstmc.protocol.bedrock.data.PacketRecipient;
 import org.cloudburstmc.protocol.common.util.VarInts;
 import org.geysermc.geyser.network.GameProtocol;
+import org.geysermc.geyser.network.netease.packets.SetDimensionLocalTimePacket;
+import org.geysermc.geyser.network.netease.serializers.SetDimensionLocalTimeSerializer;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

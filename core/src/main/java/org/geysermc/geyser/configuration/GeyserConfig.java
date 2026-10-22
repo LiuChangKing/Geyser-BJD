@@ -507,10 +507,22 @@ public interface GeyserConfig {
 
         @DefaultNumeric(6379)
         int port();
+
+        @DefaultString("mcnetgame")
+        String password();
     }
 
     @ConfigSerializable
     interface ChunkCacheConfig {
+        @Comment("""
+                是否使用实验性区块转译实现，这是本组区块缓存功能的总开关。
+                开启后会预计算方块坐标索引、在主转换循环中生成 Bedrock 专属方块实体、直接写入简单调色板位数组、
+                合并单一生物群系存储，并允许下方的热点区块转译缓存和客户端 Blob Cache 工作，从而降低重复转译的
+                CPU 消耗及热点区块的网络带宽。
+                设为 false 时会回退到 Geyser 原有的旧区块转译路径，下面的转译缓存和客户端 Blob Cache 设置均不生效。""")
+        @DefaultBoolean(true)
+        boolean useExperimentalChunkTranslation();
+
         @Comment("""
                 是否启用全局区块转译缓存。
                 缓存相同 Java 区块转译后的 Bedrock 数据，可降低重复转译的 CPU 开销；关闭后仅禁用服务端转译缓存，
@@ -524,11 +536,69 @@ public interface GeyserConfig {
                 缓存兼容性问题，请先将此项设为 false 进行排查。""")
         @DefaultBoolean(true)
         boolean enableBlobCache();
+
+        @Comment("""
+                全局区块转译缓存允许占用的最大内存，单位为字节。
+                默认 536870912 字节（512 MiB）；达到上限后会自动淘汰较旧的缓存条目。""")
+        @DefaultNumeric(536870912)
+        @NumericRange(from = 1, to = Integer.MAX_VALUE)
+        long translationCacheMaxBytes();
+
+        @Comment("""
+                允许写入转译缓存的最小 Bedrock 区块 payload 大小，单位为字节。
+                小于该值的区块重新转译成本通常较低，因此不会写入或命中转译缓存；该设置不限制 Blob Cache。
+                设置为 0 可取消最小大小限制。""")
+        @DefaultNumeric(4096)
+        @NumericRange(from = 0, to = Integer.MAX_VALUE)
+        int translationCacheMinPayloadBytes();
+
+        @Comment("""
+                区块在统计窗口内至少出现多少次后才视为热点区块。
+                热点区块才允许写入转译缓存或使用 Blob Cache。""")
+        @DefaultNumeric(3)
+        @NumericRange(from = 1, to = Integer.MAX_VALUE)
+        int hotThreshold();
+
+        @Comment("""
+                热点区块访问次数的统计窗口，单位为秒。
+                超过该时间后，同一区块内容的访问次数会重新统计。""")
+        @DefaultNumeric(60)
+        @NumericRange(from = 1, to = Integer.MAX_VALUE)
+        long frequencyWindowSeconds();
+
+        @Comment("""
+                热点频率统计表最多保留的区块条目数量。
+                达到上限后会自动淘汰较旧的统计条目。""")
+        @DefaultNumeric(100000)
+        @NumericRange(from = 1, to = Integer.MAX_VALUE)
+        long frequencyMaxEntries();
+
+        @Comment("""
+                转译缓存条目在最后一次访问后保留的时间，单位为分钟。
+                超过该时间未再次命中的条目会自动失效。""")
+        @DefaultNumeric(10)
+        @NumericRange(from = 1, to = Integer.MAX_VALUE)
+        long expireAfterAccessMinutes();
+
+        @Comment("""
+                区块转译缓存统计日志的输出间隔，单位为秒。
+                日志包含命中、热点、Blob 发送数量和转译耗时等汇总信息。""")
+        @DefaultNumeric(60)
+        @NumericRange(from = 1, to = Integer.MAX_VALUE)
+        long summaryIntervalSeconds();
     }
 
     @ConfigSerializable
     interface NeteaseConfig {
-        @Comment("Whether to require Netease online mode authentication.")
+        @Comment("""
+                是否仅使用网易证书链进行基岩登录验证。
+                开启后不会请求微软 discovery、OpenID 或 JWKS 服务，只接受通过网易 TokenChain 校验的三段证书链，
+                并在本地完成 ClientData 验签和连接加密。TokenPayload 登录在此模式下会被拒绝。
+                关闭后恢复 Cloudburst 的微软验证流程，并继续执行下方的网易在线模式检查。修改后需要重启。""")
+        @DefaultBoolean(true)
+        boolean neteaseOnlyAuthentication();
+
+        @Comment("是否要求网易登录证书的环境标识为 obt。关闭后仍会验证网易 TokenChain，但不限制 profile.env。")
         @DefaultBoolean(true)
         boolean onlineMode();
 
@@ -540,19 +610,15 @@ public interface GeyserConfig {
         @DefaultBoolean(false)
         boolean allowCustomGeometry();
 
-        @Comment("Whether local skins should be used when the skin service has no skin for a player.")
-        @DefaultBoolean(false)
-        boolean enableLocalSkins();
-
         @Comment("""
                 网易客户端资源包分片发送间隔，单位为毫秒。
-                设置为 0 或负数时不启用。若有玩家下载资源包时出现长时间卡住，建议将该值调整为 20 左右。""")
-        @DefaultNumeric(0)
+                设置为 0 或负数时不启用。若有玩家下载资源包时出现长时间卡住，建议将该值调整为 200。""")
+        @DefaultNumeric(200)
         int resourcePackChunkSendDelayMs();
 
         @Comment("""
                 区块缓存设置。实验性功能
-                这两项在启动或重载时读取；/geyser chunkcache 命令只能临时切换，重启或重载后会恢复为这里的值。
+                这些设置在启动或重载时读取；/geyser chunkcache 命令只能临时切换，重启或重载后会恢复为这里的值。
                 如果出现区块加载但是不渲染的情况请关闭该功能""")
         ChunkCacheConfig chunkCache();
 

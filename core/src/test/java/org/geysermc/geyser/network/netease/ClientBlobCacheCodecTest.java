@@ -33,6 +33,7 @@ import org.cloudburstmc.protocol.bedrock.packet.ClientCacheBlobStatusPacket;
 import org.cloudburstmc.protocol.bedrock.packet.ClientCacheStatusPacket;
 import org.cloudburstmc.protocol.common.util.VarInts;
 import org.geysermc.geyser.network.GameProtocol;
+import org.geysermc.geyser.network.netease.serializers.NeteaseClientCacheBlobStatusSerializer;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

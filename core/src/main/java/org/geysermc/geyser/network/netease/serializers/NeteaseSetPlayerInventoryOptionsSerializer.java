@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2024 GeyserMC. http://geysermc.org
+ * Copyright (c) 2019-2026 GeyserMC. http://geysermc.org
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,36 +23,35 @@
  * @link https://github.com/GeyserMC/Geyser
  */
 
-package org.geysermc.geyser.network.netease;
+package org.geysermc.geyser.network.netease.serializers;
 
 import io.netty.buffer.ByteBuf;
 import org.cloudburstmc.protocol.bedrock.codec.BedrockCodecHelper;
 import org.cloudburstmc.protocol.bedrock.codec.BedrockPacketSerializer;
-import org.cloudburstmc.protocol.bedrock.codec.v291.serializer.ContainerOpenSerializer_v291;
-import org.cloudburstmc.protocol.bedrock.packet.ContainerOpenPacket;
+import org.cloudburstmc.protocol.bedrock.codec.v630.serializer.SetPlayerInventoryOptionsSerializer_v630;
+import org.cloudburstmc.protocol.bedrock.packet.SetPlayerInventoryOptionsPacket;
+import org.cloudburstmc.protocol.common.util.VarInts;
 
-final class NeteaseContainerOpenSerializer {
+public final class NeteaseSetPlayerInventoryOptionsSerializer {
 
-    static final BedrockPacketSerializer<ContainerOpenPacket> V860 = new ContainerOpenSerializer_v291() {
+    public static final BedrockPacketSerializer<SetPlayerInventoryOptionsPacket> V860 = new SetPlayerInventoryOptionsSerializer_v630() {
         @Override
-        public void serialize(ByteBuf buffer, BedrockCodecHelper helper, ContainerOpenPacket packet) {
+        public void serialize(ByteBuf buffer, BedrockCodecHelper helper, SetPlayerInventoryOptionsPacket packet) {
             super.serialize(buffer, helper, packet);
-            // V860
-            // Netease Only start
-            buffer.writeBoolean(false);
-            // Netease Only end
+            // NetEase v860+ requires this unnamed field even when no option is set.
+            VarInts.writeUnsignedInt(buffer, 0);
         }
 
         @Override
-        public void deserialize(ByteBuf buffer, BedrockCodecHelper helper, ContainerOpenPacket packet) {
+        public void deserialize(ByteBuf buffer, BedrockCodecHelper helper, SetPlayerInventoryOptionsPacket packet) {
             super.deserialize(buffer, helper, packet);
-            // V860
-            // Netease Only start
-            buffer.readBoolean();
-            // Netease Only end
+            // This client-only option has no Java inventory equivalent.
+            if (buffer.isReadable()) {
+                VarInts.readUnsignedInt(buffer);
+            }
         }
     };
 
-    private NeteaseContainerOpenSerializer() {
+    private NeteaseSetPlayerInventoryOptionsSerializer() {
     }
 }

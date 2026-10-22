@@ -239,8 +239,10 @@ public class GeyserImpl implements GeyserApi, EventRegistrar {
     }
 
     public void initialize() {
-        // Setup encryption early so we don't start if we can't auth
-        if (config().advanced().bedrock().validateBedrockLogin()) {
+        // The NetEase-only path validates its own root chain and must not initialize the
+        // Microsoft-backed Cloudburst utility, which performs remote discovery on startup.
+        if (config().advanced().bedrock().validateBedrockLogin()
+                && !config().netease().neteaseOnlyAuthentication()) {
             try {
                 EncryptionUtils.getMojangPublicKey();
             } catch (Throwable t) {
@@ -381,13 +383,16 @@ public class GeyserImpl implements GeyserApi, EventRegistrar {
         config.setMinEvictableIdleTimeMillis(60000);
         config.setNumTestsPerEvictionRun(-1);
 
-        return new JedisPool(config, geyserConfig.netease().redis().url(), geyserConfig.netease().redis().port());
+        String host = geyserConfig.netease().redis().url();
+        int port = geyserConfig.netease().redis().port();
+        String password = geyserConfig.netease().redis().password();
+        int timeout = 2000;
+
+        return new JedisPool(config, host, port, timeout, password);
     }
 
     private void startInstance() {
         this.scheduledThread = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("Geyser Scheduled Thread"));
-
-        SkinProvider.initializeLocalSkins();
 
         if (isReloading) {
             // If we're reloading, the default locale in the config might have changed.
@@ -399,8 +404,7 @@ public class GeyserImpl implements GeyserApi, EventRegistrar {
         GeyserLogger logger = bootstrap.getGeyserLogger();
         GeyserConfig config = bootstrap.config();
 
-        JavaLevelChunkWithLightTranslator.setGlobalChunkTranslationCacheEnabled(
-            config.netease().chunkCache().enableTranslationCache());
+        JavaLevelChunkWithLightTranslator.configure(config.netease().chunkCache());
         ClientBlobCache.setGloballyEnabled(config.netease().chunkCache().enableBlobCache());
 
         ScoreboardUpdater.init();
