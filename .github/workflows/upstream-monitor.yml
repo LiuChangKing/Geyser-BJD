@@ -1,0 +1,175 @@
+name: MXZC upstream monitor / MXZC 上游监控
+
+on:
+  schedule:
+    # Offset from the top of the hour to reduce GitHub Actions scheduling delays.
+    - cron: "2-57/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: mxzc-upstream-monitor
+  cancel-in-progress: false
+
+jobs:
+  check-upstream:
+    name: Check customized branches / 检查定制分支
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      MONITOR_REPOSITORY: ${{ github.repository }}
+      ISSUE_TITLE: "[自动监控] MXZC 上游存在待同步更新 / MXZC upstream updates available"
+    steps:
+      - name: Compare upstream branches / 比较上游分支
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          body_file="$(mktemp)"
+          pending=0
+
+          cat >"$body_file" <<'EOF'
+          > 此 Issue 由 GitHub Actions 自动维护。上游更新同步完成后会自动关闭。
+          > This issue is maintained automatically by GitHub Actions and closes after all upstream updates are synchronized.
+
+          ## 待同步更新 / Pending updates
+
+          EOF
+
+          urlencode() {
+            python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=":"))' "$1"
+          }
+
+          check_target() {
+            local label="$1"
+            local compare_repository="$2"
+            local base_branch="$3"
+            local head_spec="$4"
+            local upstream_repository="$5"
+            local upstream_branch="$6"
+            local upstream_url="$7"
+            local mxzc_url="$8"
+
+            local basehead comparison ahead upstream_sha mxzc_sha commits
+            basehead="$(urlencode "${base_branch}...${head_spec}")"
+            comparison="$(gh api "repos/${compare_repository}/compare/${basehead}")"
+            ahead="$(jq -r '.ahead_by' <<<"$comparison")"
+
+            if (( ahead == 0 )); then
+              echo "${label}: synchronized"
+              return
+            fi
+
+            pending=$((pending + 1))
+            upstream_sha="$(gh api "repos/${upstream_repository}/commits/$(urlencode "$upstream_branch")" --jq '.sha')"
+            mxzc_sha="$(jq -r '.base_commit.sha' <<<"$comparison")"
+            commits="$(jq -r '.commits[] | "- [`\(.sha[0:7])`](\(.html_url)) \(.commit.message | split("\n")[0])"' <<<"$comparison")"
+
+            {
+              echo "### ${label}"
+              echo
+              echo "- 上游分支 / Upstream: [\`${upstream_repository}:${upstream_branch}\`](${upstream_url})"
+              echo "- MXZC 分支 / MXZC branch: [\`${compare_repository}:${base_branch}\`](${mxzc_url})"
+              echo "- 未同步提交 / Missing commits: **${ahead}**"
+              echo "- 上游 HEAD / Upstream HEAD: \`${upstream_sha}\`"
+              echo "- MXZC HEAD: \`${mxzc_sha}\`"
+              echo
+              echo "#### 提交列表 / Commits"
+              echo
+              if [[ -n "$commits" ]]; then
+                echo "$commits"
+              else
+                echo "- 提交数量超过比较接口返回范围，请打开分支比较页面查看。"
+                echo "- The commit count exceeds the comparison response range; open the branch comparison page for details."
+              fi
+              echo
+            } >>"$body_file"
+          }
+
+          check_target \
+            "Geyser 主上游 / Primary upstream" \
+            "LiuChangKing/Geyser-BJD" \
+            "netease/1.21.130-mxzc" \
+            "mc-dreamland:netease/1.21.130" \
+            "mc-dreamland/Geyser" \
+            "netease/1.21.130" \
+            "https://github.com/mc-dreamland/Geyser/tree/netease/1.21.130" \
+            "https://github.com/LiuChangKing/Geyser-BJD/tree/netease/1.21.130-mxzc"
+
+          check_target \
+            "Geyser 仓库基线 / Repository baseline" \
+            "LiuChangKing/Geyser-BJD" \
+            "netease/1.21.130-mxzc" \
+            "netease/1.21.130" \
+            "LiuChangKing/Geyser-BJD" \
+            "netease/1.21.130" \
+            "https://github.com/LiuChangKing/Geyser-BJD/tree/netease/1.21.130" \
+            "https://github.com/LiuChangKing/Geyser-BJD/tree/netease/1.21.130-mxzc"
+
+          check_target \
+            "Floodgate 上游 / Upstream" \
+            "LiuChangKing/FloodgateD" \
+            "netease_2.0_mxzc" \
+            "netease_2.0" \
+            "LiuChangKing/FloodgateD" \
+            "netease_2.0" \
+            "https://github.com/LiuChangKing/FloodgateD/tree/netease_2.0" \
+            "https://github.com/LiuChangKing/FloodgateD/tree/netease_2.0_mxzc"
+
+          issue_number="$(gh issue list \
+            --repo "$MONITOR_REPOSITORY" \
+            --state all \
+            --search 'in:title "MXZC 上游存在待同步更新"' \
+            --limit 10 \
+            --json number \
+            --jq '.[0].number // empty')"
+
+          if (( pending > 0 )); then
+            cat >>"$body_file" <<'EOF'
+          ## 处理建议 / Recommended action
+
+          将上游分支合并到对应的 MXZC 分支，完成测试、构建和推送后，本 Issue 会在下一次检查时自动关闭。
+
+          Merge the upstream branch into the corresponding MXZC branch. After testing, building, and pushing the result, this issue will close automatically on the next check.
+
+          <!-- mxzc-upstream-monitor -->
+          EOF
+
+            if [[ -z "$issue_number" ]]; then
+              gh issue create \
+                --repo "$MONITOR_REPOSITORY" \
+                --title "$ISSUE_TITLE" \
+                --body-file "$body_file" \
+                --assignee "LiuChangKing"
+              exit 0
+            fi
+
+            issue_state="$(gh issue view "$issue_number" --repo "$MONITOR_REPOSITORY" --json state --jq '.state')"
+            current_body="$(gh issue view "$issue_number" --repo "$MONITOR_REPOSITORY" --json body --jq '.body')"
+            new_body="$(cat "$body_file")"
+
+            if [[ "$current_body" != "$new_body" ]]; then
+              gh issue edit "$issue_number" --repo "$MONITOR_REPOSITORY" --body-file "$body_file"
+              if [[ "$issue_state" == "OPEN" ]]; then
+                gh issue comment "$issue_number" \
+                  --repo "$MONITOR_REPOSITORY" \
+                  --body "检测到新的上游提交，监控详情已更新。 / New upstream commits were detected; the monitoring details have been updated."
+              fi
+            fi
+
+            if [[ "$issue_state" == "CLOSED" ]]; then
+              gh issue reopen "$issue_number" --repo "$MONITOR_REPOSITORY"
+            fi
+          elif [[ -n "$issue_number" ]]; then
+            issue_state="$(gh issue view "$issue_number" --repo "$MONITOR_REPOSITORY" --json state --jq '.state')"
+            if [[ "$issue_state" == "OPEN" ]]; then
+              gh issue close "$issue_number" \
+                --repo "$MONITOR_REPOSITORY" \
+                --reason completed \
+                --comment "所有受监控上游提交均已同步。 / All monitored upstream commits have been synchronized."
+            fi
+          fi
