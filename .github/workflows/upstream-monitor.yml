@@ -2,8 +2,7 @@ name: MXZC upstream monitor / MXZC 上游监控
 
 on:
   schedule:
-    # Offset from the top of the hour to reduce GitHub Actions scheduling delays.
-    - cron: "2-57/5 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:
